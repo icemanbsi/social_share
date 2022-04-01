@@ -38,9 +38,9 @@
               //If you dont have a background image
              // Assign background image asset and attribution link URL to pasteboard
              NSArray *pasteboardItems = @[@{@"com.instagram.sharedSticker.stickerImage" : imgShare,
-                                            @"com.instagram.sharedSticker.backgroundTopColor" : backgroundTopColor,
-                                            @"com.instagram.sharedSticker.backgroundBottomColor" : backgroundBottomColor,
-                                            @"com.instagram.sharedSticker.contentURL" : attributionURL
+                                            // @"com.instagram.sharedSticker.backgroundTopColor" : backgroundTopColor,
+                                            // @"com.instagram.sharedSticker.backgroundBottomColor" : backgroundBottomColor,
+                                            // @"com.instagram.sharedSticker.contentURL" : attributionURL
              }];
              if (@available(iOS 10.0, *)) {
              NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
@@ -64,9 +64,9 @@
            }
                NSArray *pasteboardItems = @[@{@"com.instagram.sharedSticker.backgroundImage" : imgBackgroundShare,
                                               @"com.instagram.sharedSticker.stickerImage" : imgShare,
-                                              @"com.instagram.sharedSticker.backgroundTopColor" : backgroundTopColor,
-                                              @"com.instagram.sharedSticker.backgroundBottomColor" : backgroundBottomColor,
-                                              @"com.instagram.sharedSticker.contentURL" : attributionURL
+                                            //   @"com.instagram.sharedSticker.backgroundTopColor" : backgroundTopColor,
+                                            //   @"com.instagram.sharedSticker.backgroundBottomColor" : backgroundBottomColor,
+                                            //   @"com.instagram.sharedSticker.contentURL" : attributionURL
                           }];
                           if (@available(iOS 10.0, *)) {
                           NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
@@ -80,8 +80,53 @@
                         }
            }
        } else {
-           result(@"not supported or no facebook installed");
+           result(@"not supported or no instagram installed");
        }
+    } else if ([@"shareInstagramPost" isEqualToString:call.method]) {
+        //Sharing story on instagram
+        NSString *image = call.arguments[@"image"];
+        //getting image from file
+        NSFileManager *fileManager = [NSFileManager defaultManager];
+        BOOL isFileExist = [fileManager fileExistsAtPath: image];
+        UIImage *imgShare;
+        if (isFileExist) {
+          //if image exists
+          imgShare = [[UIImage alloc] initWithContentsOfFile:image];
+        }
+        //url Scheme for instagram post
+        NSURL *urlScheme = [NSURL URLWithString:@"instagram://share"];
+        //adding data to send to instagram story
+        if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+           //if instagram is installed and the url can be opened
+        //    NSArray *pasteboardItems = @[@{@"com.instagram.photo" : imgShare}];
+        //     if (@available(iOS 10.0, *)) {
+        //         NSDictionary *pasteboardOptions = @{UIPasteboardOptionExpirationDate : [[NSDate date] dateByAddingTimeInterval:60 * 5]};
+        //         // This call is iOS 10+, can use 'setItems' depending on what versions you support
+        //         [[UIPasteboard generalPasteboard] setItems:pasteboardItems options:pasteboardOptions];
+                    
+        //         [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
+        //             //if success
+        //             result(@"sharing");
+        //     } else {
+        //         result(@"this only supports iOS 10+");
+        //     }
+            UIImage *imageToUse = imgShare;
+            NSString *documentDirectory=[NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+            NSString *saveImagePath=[documentDirectory stringByAppendingPathComponent:@"Image.ig"];
+            NSData *imageData=UIImagePNGRepresentation(imageToUse);
+            [imageData writeToFile:saveImagePath atomically:YES];
+            NSURL *imageURL=[NSURL fileURLWithPath:saveImagePath];
+            self.documentController=[[UIDocumentInteractionController alloc]init];
+            self.documentController = [UIDocumentInteractionController interactionControllerWithURL:imageURL];
+            self.documentController.delegate = self;
+            // self.documentController.annotation = [NSDictionary dictionaryWithObjectsAndKeys:[NSString stringWithFormat:@"Testing"], @"InstagramCaption", nil];
+            self.documentController.UTI = @"com.instagram.photo";
+            UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
+            [self.documentController presentOpenInMenuFromRect:CGRectMake(1, 1, 1, 1) inView:vc.view animated:YES];
+            // [[UIApplication sharedApplication] openURL:urlScheme options:@{} completionHandler:nil];
+        } else {
+           result(@"not supported or no instagram installed");
+        }
     } else if ([@"shareFacebookStory" isEqualToString:call.method]) {
         NSString *stickerImage = call.arguments[@"stickerImage"];
         NSString *backgroundTopColor = call.arguments[@"backgroundTopColor"];
@@ -118,6 +163,55 @@
         } else {
             result(@"not supported or no facebook installed");
         }
+    } else if ([@"shareFacebookPost" isEqualToString:call.method]) {
+        NSString *content = call.arguments[@"content"];
+        NSArray *imagesPaths = call.arguments[@"images"];
+        
+        NSMutableArray *imgShares = [[NSMutableArray alloc] init];
+        NSString *firstPath = @"";
+        if (imagesPaths != nil){
+            for (NSString* imgPath in imagesPaths)
+            {
+                NSFileManager *fileManager = [NSFileManager defaultManager];
+                BOOL isFileExist = [fileManager fileExistsAtPath: imgPath];
+                if (isFileExist) {
+                    //if image exists
+                    [imgShares addObject: [[UIImage alloc] initWithContentsOfFile:imgPath]];
+                    firstPath = imgPath;
+                }
+            }
+        }
+        
+        //url Scheme for instagram post
+        NSURL *urlScheme = [NSURL URLWithString:@"fb://post"];
+        //adding data to send to instagram story
+        if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+            if (imgShares.count == 1){
+                // UIImage *imageToUse = imgShares.firstObject;
+                // NSString *documentDirectory=[NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+                // NSString *saveImagePath=[documentDirectory stringByAppendingPathComponent:@"ImageTemp.wai"];
+                // NSData *imageData=UIImagePNGRepresentation(imageToUse);
+                // [imageData writeToFile:saveImagePath atomically:YES];
+                NSURL *imageURL=[NSURL fileURLWithPath:firstPath];
+                self.documentController=[[UIDocumentInteractionController alloc]init];
+                self.documentController = [UIDocumentInteractionController interactionControllerWithURL:imageURL];
+                self.documentController.delegate = self;
+                // self.documentController.annotation = [NSDictionary dictionaryWithObjectsAndKeys:[NSString stringWithFormat:content], @"WaMessage", nil];
+                self.documentController.UTI = @"public.image";
+                UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
+                [self.documentController presentOpenInMenuFromRect:CGRectMake(1, 1, 1, 1) inView:vc.view animated:YES];
+            }
+            else{
+                //  NSArray *objectsToShare = [@[content] arrayByAddingObjectsFromArray:imgShares];
+                //  NSArray *objectsToShare = @[content, imgShares.firstObject];
+                 UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:imgShares applicationActivities:nil];
+                 UIViewController *controller =[UIApplication sharedApplication].keyWindow.rootViewController;
+                 [controller presentViewController:activityVC animated:YES completion:nil];
+            }
+        } else {
+           result(@"not supported or no instagram installed");
+        }
+        result([NSNumber numberWithBool:YES]);
     } else if ([@"copyToClipboard" isEqualToString:call.method]) {
         NSString *content = call.arguments[@"content"];
         UIPasteboard *pasteboard = [UIPasteboard generalPasteboard];
@@ -252,13 +346,57 @@
         result([NSNumber numberWithBool:YES]);
     } else if ([@"shareWhatsapp" isEqualToString:call.method]) {
         NSString *content = call.arguments[@"content"];
-        NSString * urlWhats = [NSString stringWithFormat:@"whatsapp://send?text=%@",content];
-        NSURL * whatsappURL = [NSURL URLWithString:[urlWhats stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
-        if ([[UIApplication sharedApplication] canOpenURL: whatsappURL]) {
-            [[UIApplication sharedApplication] openURL: whatsappURL];
-            result(@"sharing");
+        NSArray *imagesPaths = call.arguments[@"images"];
+        // NSString * urlWhats = [NSString stringWithFormat:@"whatsapp://send?text=%@",content];
+        // NSURL * whatsappURL = [NSURL URLWithString:[urlWhats stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding]];
+        // if ([[UIApplication sharedApplication] canOpenURL: whatsappURL]) {
+        //     [[UIApplication sharedApplication] openURL: whatsappURL];
+        //     result(@"sharing");
+        // } else {
+        //     result(@"cannot open whatsapp");
+        // }
+
+        NSMutableArray *imgShares = [[NSMutableArray alloc] init];
+        if (imagesPaths != nil){
+            for (NSString* imgPath in imagesPaths)
+            {
+                NSFileManager *fileManager = [NSFileManager defaultManager];
+                BOOL isFileExist = [fileManager fileExistsAtPath: imgPath];
+                if (isFileExist) {
+                    //if image exists
+                    [imgShares addObject: [[UIImage alloc] initWithContentsOfFile:imgPath]];
+                }
+            }
+        }
+        
+        //url Scheme for instagram post
+        NSURL *urlScheme = [NSURL URLWithString:@"whatsapp://send"];
+        //adding data to send to instagram story
+        if ([[UIApplication sharedApplication] canOpenURL:urlScheme]) {
+            if (imgShares.count == 1){
+                UIImage *imageToUse = imgShares.firstObject;
+                NSString *documentDirectory=[NSHomeDirectory() stringByAppendingPathComponent:@"Documents"];
+                NSString *saveImagePath=[documentDirectory stringByAppendingPathComponent:@"ImageTemp.wai"];
+                NSData *imageData=UIImagePNGRepresentation(imageToUse);
+                [imageData writeToFile:saveImagePath atomically:YES];
+                NSURL *imageURL=[NSURL fileURLWithPath:saveImagePath];
+                self.documentController=[[UIDocumentInteractionController alloc]init];
+                self.documentController = [UIDocumentInteractionController interactionControllerWithURL:imageURL];
+                self.documentController.delegate = self;
+                // self.documentController.annotation = [NSDictionary dictionaryWithObjectsAndKeys:[NSString stringWithFormat:content], @"WaMessage", nil];
+                self.documentController.UTI = @"net.whatsapp.image";
+                UIViewController *vc = [UIApplication sharedApplication].keyWindow.rootViewController;
+                [self.documentController presentOpenInMenuFromRect:CGRectMake(1, 1, 1, 1) inView:vc.view animated:YES];
+            }
+            else{
+                //  NSArray *objectsToShare = [@[content] arrayByAddingObjectsFromArray:imgShares];
+                //  NSArray *objectsToShare = @[content, imgShares.firstObject];
+                 UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:imgShares applicationActivities:nil];
+                 UIViewController *controller =[UIApplication sharedApplication].keyWindow.rootViewController;
+                 [controller presentViewController:activityVC animated:YES completion:nil];
+            }
         } else {
-            result(@"cannot open whatsapp");
+           result(@"not supported or no instagram installed");
         }
         result([NSNumber numberWithBool:YES]);
     } else if ([@"shareTelegram" isEqualToString:call.method]) {
@@ -274,9 +412,12 @@
         result([NSNumber numberWithBool:YES]);
     } else if ([@"shareOptions" isEqualToString:call.method]) {
         NSString *content = call.arguments[@"content"];
-        NSString *image = call.arguments[@"image"];
+        NSArray *imagesPaths = call.arguments[@"images"];
+
+        // NSString *content = call.arguments[@"content"];
+        // NSString *image = call.arguments[@"image"];
         //checking if it contains image file
-        if ([image isEqual:[NSNull null]] || [ image  length] == 0 ) {
+        if (imagesPaths == nil || imagesPaths.count == 0) {
             //when image is not included
             NSArray *objectsToShare = @[content];
             UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:objectsToShare applicationActivities:nil];
@@ -284,15 +425,18 @@
             [controller presentViewController:activityVC animated:YES completion:nil];
             result([NSNumber numberWithBool:YES]);
         } else {
-            //when image file is included
-            NSFileManager *fileManager = [NSFileManager defaultManager];
-            BOOL isFileExist = [fileManager fileExistsAtPath: image];
-            UIImage *imgShare;
-            if (isFileExist) {
-                imgShare = [[UIImage alloc] initWithContentsOfFile:image];
+            NSMutableArray *imgShares = [[NSMutableArray alloc] init];
+            for (NSString* imgPath in imagesPaths)
+            {
+                NSFileManager *fileManager = [NSFileManager defaultManager];
+                BOOL isFileExist = [fileManager fileExistsAtPath: imgPath];
+                if (isFileExist) {
+                    //if image exists
+                    [imgShares addObject: [[UIImage alloc] initWithContentsOfFile:imgPath]];
+                }
             }
-            NSArray *objectsToShare = @[content, imgShare];
-            UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:objectsToShare applicationActivities:nil];
+            // NSArray *objectsToShare = @[content, imgShare];
+            UIActivityViewController *activityVC = [[UIActivityViewController alloc] initWithActivityItems:imgShares applicationActivities:nil];
             UIViewController *controller =[UIApplication sharedApplication].keyWindow.rootViewController;
             [controller presentViewController:activityVC animated:YES completion:nil];
             result([NSNumber numberWithBool:YES]);

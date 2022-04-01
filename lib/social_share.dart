@@ -5,6 +5,11 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+enum WaType{
+  DEFAULT,
+  BUSINESS,
+}
+
 class SocialShare {
   static const MethodChannel _channel = const MethodChannel('social_share');
 
@@ -70,6 +75,35 @@ class SocialShare {
     );
     return response;
   }
+  
+  static Future<String?> shareInstagramPost(String imagePath) async {
+    Map<String, dynamic> args;
+    if (Platform.isIOS) {
+      args = <String, dynamic>{
+          "image": imagePath,
+        };
+    } else {
+      final tempDir = await getTemporaryDirectory();
+
+      File file = File(imagePath);
+      Uint8List bytes = file.readAsBytesSync();
+      var stickerData = bytes.buffer.asUint8List();
+      String stickerAssetName = 'feedAsset.png';
+      final Uint8List stickerAssetAsList = stickerData;
+      final stickerAssetPath = '${tempDir.path}/$stickerAssetName';
+      file = await File(stickerAssetPath).create();
+      file.writeAsBytesSync(stickerAssetAsList);
+
+      args = <String, dynamic>{
+        "image": stickerAssetName,
+      };
+    }
+    final String? response = await _channel.invokeMethod(
+      'shareInstagramPost',
+      args,
+    );
+    return response;
+  }
 
   static Future<String?> shareFacebookStory(
       String imagePath,
@@ -106,6 +140,18 @@ class SocialShare {
     final String? response =
     await _channel.invokeMethod('shareFacebookStory', args);
     return response;
+  }
+
+  static Future<String?> shareFacebookPost(
+      String content, {
+        List<String>? images
+    }) async {
+    final Map<String, dynamic> args = <String, dynamic>{
+      "content": content,
+      "images": images
+    };
+    final String? version = await _channel.invokeMethod('shareFacebookPost', args);
+    return version;
   }
 
   static Future<String?> shareTwitter(String captionText,
@@ -171,13 +217,13 @@ class SocialShare {
   }
 
   static Future<bool?> shareOptions(String contentText,
-      {String? imagePath}) async {
+      {List<String>? imagesPath}) async {
     Map<String, dynamic> args;
     if (Platform.isIOS) {
-      args = <String, dynamic>{"image": imagePath, "content": contentText};
+      args = <String, dynamic>{"images": imagesPath, "content": contentText};
     } else {
-      if (imagePath != null) {
-        File file = File(imagePath);
+      if (imagesPath != null && imagesPath.isNotEmpty) {
+        File file = File(imagesPath.first);
         Uint8List bytes = file.readAsBytesSync();
         var imagedata = bytes.buffer.asUint8List();
         final tempDir = await getTemporaryDirectory();
@@ -186,17 +232,24 @@ class SocialShare {
         final imageDataPath = '${tempDir.path}/$imageName';
         file = await File(imageDataPath).create();
         file.writeAsBytesSync(imageAsList);
-        args = <String, dynamic>{"image": imageName, "content": contentText};
+        args = <String, dynamic>{"images": imageName, "content": contentText};
       } else {
-        args = <String, dynamic>{"image": imagePath, "content": contentText};
+        args = <String, dynamic>{"images": imagesPath, "content": contentText};
       }
     }
     final bool? version = await _channel.invokeMethod('shareOptions', args);
     return version;
   }
 
-  static Future<String?> shareWhatsapp(String content) async {
-    final Map<String, dynamic> args = <String, dynamic>{"content": content};
+  static Future<String?> shareWhatsapp(
+      String content, {
+        List<String>? images,
+        WaType waType = WaType.DEFAULT
+    }) async {
+    final Map<String, dynamic> args = <String, dynamic>{
+      "content": content,
+      "images": images
+    };
     final String? version = await _channel.invokeMethod('shareWhatsapp', args);
     return version;
   }
